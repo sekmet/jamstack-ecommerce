@@ -22,7 +22,8 @@ const SiteContext = React.createContext()
 
 function calculateTotal(cart) {
   const total = cart.reduce((acc, next) => {
-    acc = acc + JSON.parse(next.price)
+    const quantity = next.quantity
+    acc = acc + JSON.parse(next.price) * quantity
     return acc
   }, 0)
   return total
@@ -37,10 +38,35 @@ class ContextProviderComponent extends React.Component {
       }
     }
   }
-  addToCart = (item) => {
+
+  setItemQuantity = (item) => {
     const storageState = JSON.parse(window.localStorage.getItem(STORAGE_KEY))
     const { cart } = storageState
-    cart.push(item)
+    const index = cart.findIndex(cartItem => cartItem.id === item.id)
+    cart[index].quantity = item.quantity
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      cart, numberOfItemsInCart: cart.length, total: calculateTotal(cart)
+    }))
+    this.forceUpdate()
+  }
+
+  addToCart = item => {
+    const storageState = JSON.parse(window.localStorage.getItem(STORAGE_KEY))
+    const { cart } = storageState
+    if (cart.length) {
+      const index = cart.findIndex(cartItem => cartItem.id === item.id)
+      if (index >= Number(0)) {
+        /* If this item is already in the cart, update the quantity */
+        cart[index].quantity = cart[index].quantity + item.quantity
+      } else {
+        /* If this item is not yet in the cart, add it */
+        cart.push(item)
+      }
+    } else {
+      /* If no items in the cart, add the first item. */
+      cart.push(item)
+    }
+
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
       cart, numberOfItemsInCart: cart.length, total: calculateTotal(cart)
     }))
@@ -74,7 +100,6 @@ class ContextProviderComponent extends React.Component {
         state = JSON.parse(storageState)
       }
     }
-    console.log('state: ', state)
 
     return (
       <StaticQuery query={mainQuery}>
@@ -85,7 +110,8 @@ class ContextProviderComponent extends React.Component {
                navItems: queryData,
                addToCart: this.addToCart,
                clearCart: this.clearCart,
-               removeFromCart: this.removeFromCart
+               removeFromCart: this.removeFromCart,
+               setItemQuantity: this.setItemQuantity
             }}>
              {this.props.children}
            </SiteContext.Provider>
